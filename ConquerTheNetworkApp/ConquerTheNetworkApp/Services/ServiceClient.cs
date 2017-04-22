@@ -7,6 +7,8 @@ using System.Net;
 using System.Net.Http;
 using System;
 using Xamarin.Forms;
+using Polly;
+using System.Diagnostics;
 
 namespace ConquerTheNetworkApp.Services
 {
@@ -69,7 +71,15 @@ namespace ConquerTheNetworkApp.Services
 		public async Task<List<City>> GetCities(bool isUserInitiated)
 		{
 			var client = isUserInitiated ? UserInitiated : Background;
-			return await client.GetCities();
+
+			return await Policy
+				 .Handle<ApiException>(ex => ex.StatusCode != HttpStatusCode.NotFound)
+				 .CircuitBreakerAsync(exceptionsAllowedBeforeBreaking: 2, durationOfBreak: TimeSpan.FromMinutes(1))
+				 .ExecuteAsync(async () =>
+				 {
+					 Debug.WriteLine("Trying cities service call...");
+					 return await client.GetCities();
+				 });
 		}
 
 		public async Task<Schedule> GetScheduleForCity(string id, bool isUserInitiated)
@@ -77,7 +87,19 @@ namespace ConquerTheNetworkApp.Services
 			try
 			{
 				var client = isUserInitiated ? UserInitiated : Speculative;
-				return await client.GetScheduleForCity(id);
+
+				return await Policy
+						 .Handle<ApiException>(ex => ex.StatusCode != HttpStatusCode.NotFound)
+						 .WaitAndRetryAsync
+						 (
+							 retryCount: 3,
+							 sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
+						 )
+						 .ExecuteAsync(async () =>
+						 {
+							 Debug.WriteLine("Trying schedule service call...");
+							 return await client.GetScheduleForCity(id);
+						 });
 			}
 			catch (ApiException ex)
 			{
@@ -91,7 +113,18 @@ namespace ConquerTheNetworkApp.Services
 
 		public async Task SendRating(double rating)
 		{
-			await UserInitiated.Rate(rating);
+			await Policy
+				.Handle<ApiException>(ex => ex.StatusCode != HttpStatusCode.NotFound)
+				.WaitAndRetryAsync
+				(
+					retryCount: 5,
+					sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
+				)
+				.ExecuteAsync(async () =>
+				{
+					Debug.WriteLine("Trying rating service call...");
+					await UserInitiated.Rate(rating);
+				});
 		}
 	}
 }

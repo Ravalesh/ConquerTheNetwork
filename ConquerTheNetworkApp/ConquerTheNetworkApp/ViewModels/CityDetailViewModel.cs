@@ -79,6 +79,8 @@ namespace ConquerTheNetworkApp.ViewModels
 						catch (Exception e)
 						{
 							Notify(e.ToString(), System.Drawing.Color.Red, System.Drawing.Color.White);
+							
+							// probably want to store the rating somewhere so you can retry later
 						}
 						finally
 						{
