@@ -47,14 +47,13 @@ namespace ConquerTheNetworkApp.ViewModels
 		private async Task ExecuteRefreshCommand()
 		{
 			IsLoading = true;
-			await GetSchedule();
+			await GetSchedule(isUserInitiated: true);
 			IsLoading = false;
 		}
 
-		public async Task GetSchedule()
+		public async Task GetSchedule(bool isUserInitiated)
 		{
-			var client = new ServiceClient();
-			var schedule = await client.GetScheduleForCity(_cityId);
+			var schedule = await ServiceClient.Instance.GetScheduleForCity(_cityId, isUserInitiated);
 
 			if (schedule != null)
 			{

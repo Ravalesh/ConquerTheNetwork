@@ -27,5 +27,12 @@ namespace ConquerTheNetworkApp.Views
 			var newStep = Math.Round(e.NewValue / 1.0);
 			RatingSlider.Value = newStep * 1.0;
 		}
+
+		protected async override void OnAppearing()
+		{
+			base.OnAppearing();
+
+			await ViewModel.PrefetchSchedule();
+		}
 	}
 }

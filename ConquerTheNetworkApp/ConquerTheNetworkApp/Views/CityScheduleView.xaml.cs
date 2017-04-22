@@ -24,7 +24,7 @@ namespace ConquerTheNetworkApp.Views
 		{
 			base.OnAppearing();
 
-			await ViewModel.GetSchedule();
+			await ViewModel.GetSchedule(false);
 		}
 
 		public void Schedule_OnItemSelected(object sender, SelectedItemChangedEventArgs e)

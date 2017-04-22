@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using ConquerTheNetworkApp.Data;
+using Fusillade;
 using Refit;
 using System.Net;
 using System.Net.Http;
 using System;
+using Xamarin.Forms;
 
 namespace ConquerTheNetworkApp.Services
 {
@@ -12,28 +14,70 @@ namespace ConquerTheNetworkApp.Services
 	{
 		public static string ApiBaseAddress = "http://vslivesampleservice.azurewebsites.net";
 
-		private IConferenceApi _client;
+		private readonly Lazy<IConferenceApi> _background;
+ 		private readonly Lazy<IConferenceApi> _userInitiated;
+ 		private readonly Lazy<IConferenceApi> _speculative;
+		private static INativeMessageHandlerFactory _factory;
 
-		public ServiceClient()
+		public static void Init(INativeMessageHandlerFactory factory)
 		{
-			var client = new HttpClient
-			{
-				BaseAddress = new Uri(ApiBaseAddress)
-			};
-
-			_client = RestService.For<IConferenceApi>(client);
+			_factory = factory;
 		}
 
-		public async Task<List<City>> GetCities()
+		private static Lazy<ServiceClient> _instance = new Lazy<ServiceClient>(() => new ServiceClient());
+		public static ServiceClient Instance => _instance.Value;
+
+		private ServiceClient()
 		{
-			return await _client.GetCities();
+			Func<HttpMessageHandler, IConferenceApi> createClient = messageHandler =>
+						  {
+							  var client = new HttpClient(messageHandler)
+							  {
+								  BaseAddress = new Uri(ApiBaseAddress)
+							  };
+
+							  return RestService.For<IConferenceApi>(client);
+						  };
+
+			var nativeHandler = _factory.GetNativeHandler();
+
+			_background = new Lazy<IConferenceApi>(() => createClient(
+				new RateLimitedHttpMessageHandler(nativeHandler, Priority.Background)));
+
+			_userInitiated = new Lazy<IConferenceApi>(() => createClient(
+				new RateLimitedHttpMessageHandler(nativeHandler, Priority.UserInitiated)));
+
+			_speculative = new Lazy<IConferenceApi>(() => createClient(
+				new RateLimitedHttpMessageHandler(nativeHandler, Priority.Speculative)));
 		}
 
-		public async Task<Schedule> GetScheduleForCity(string id)
+		public IConferenceApi Background
+		{
+			get { return _background.Value; }
+		}
+ 
+		public IConferenceApi UserInitiated
+		{
+			get { return _userInitiated.Value; }
+		}
+ 
+		public IConferenceApi Speculative
+		{
+			get { return _speculative.Value; }
+		}
+
+		public async Task<List<City>> GetCities(bool isUserInitiated)
+		{
+			var client = isUserInitiated ? UserInitiated : Background;
+			return await client.GetCities();
+		}
+
+		public async Task<Schedule> GetScheduleForCity(string id, bool isUserInitiated)
 		{
 			try
 			{
-				return await _client.GetScheduleForCity(id);
+				var client = isUserInitiated ? UserInitiated : Speculative;
+				return await client.GetScheduleForCity(id);
 			}
 			catch (ApiException ex)
 			{
@@ -47,7 +91,7 @@ namespace ConquerTheNetworkApp.Services
 
 		public async Task SendRating(double rating)
 		{
-			await _client.Rate(rating);
+			await UserInitiated.Rate(rating);
 		}
 	}
 }

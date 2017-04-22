@@ -52,8 +52,7 @@ namespace ConquerTheNetworkApp.ViewModels
 
 		private async Task<List<City>> GetRemoteCitiesAsync()
 		{
-			var client = new ServiceClient();
-			return await client.GetCities();
+			return await ServiceClient.Instance.GetCities(true);
 		}
 
 		private ObservableRangeCollection<City> _cities;

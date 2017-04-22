@@ -3,6 +3,7 @@ using ConquerTheNetworkApp.Views;
 using ConquerTheNetworkApp.Services;
 using Xamarin.Forms;
 using System;
+using System.Threading.Tasks;
 
 namespace ConquerTheNetworkApp.ViewModels
 {
@@ -49,6 +50,11 @@ namespace ConquerTheNetworkApp.ViewModels
 			}
 		}
 
+		public async Task PrefetchSchedule()
+		{
+			await _schedule.GetSchedule(false);
+		}
+
 		private Xamarin.Forms.Command _ratingCommand;
 		public Xamarin.Forms.Command RatingCommand
 		{
@@ -61,8 +67,7 @@ namespace ConquerTheNetworkApp.ViewModels
 
 						try
 						{
-							var client = new ServiceClient();
-							await client.SendRating(_rating);
+							await ServiceClient.Instance.SendRating(_rating);
 						}
 						catch (Exception e)
 						{
