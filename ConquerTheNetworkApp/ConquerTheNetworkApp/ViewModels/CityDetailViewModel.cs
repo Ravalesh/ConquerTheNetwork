@@ -4,6 +4,7 @@ using ConquerTheNetworkApp.Services;
 using Xamarin.Forms;
 using System;
 using System.Threading.Tasks;
+using Plugin.Connectivity;
 
 namespace ConquerTheNetworkApp.ViewModels
 {
@@ -63,6 +64,12 @@ namespace ConquerTheNetworkApp.ViewModels
 				return _ratingCommand ??
 					(_ratingCommand = new Xamarin.Forms.Command(async (o) =>
 					{
+						if (!CrossConnectivity.Current.IsConnected)
+						{
+							Notify("You seem to be offline... Try again later.", System.Drawing.Color.Gray, System.Drawing.Color.White);
+							return;
+						}
+
 						IsLoading = true;
 
 						try
